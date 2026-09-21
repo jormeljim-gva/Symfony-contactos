@@ -52,7 +52,6 @@ final class ContactoController extends AbstractController
     // El valor por defecto del parámetro `codigo` es 1
     #[Route('/contacto/update/{codigo?1}', name: 'update')]
     public function update(ManagerRegistry $doctrine, $codigo): Response
-
     {
         $entityManager = $doctrine->getManager();
         
@@ -77,6 +76,33 @@ final class ContactoController extends AbstractController
             return $this->render("ficha_contacto.html.twig", ["contacto" => $contacto]);
         }catch (\Exception $e){
             return new Response("Se ha producido un error: " . $e->getMessage());
+        }
+    }
+    #[Route('/contacto/borrar/{codigo}', name: 'borrar')]
+    public function borrar(ManagerRegistry $doctrine, int $codigo)
+    {
+        // Obtenemos el contacto por id
+        $contacto = $doctrine->getRepository(Contacto::class)->find($codigo);
+
+        if ($contacto) {
+            // Obtenemos el manager
+            $entityManager = $doctrine->getManager();
+            try {
+                // Eliminamos el contacto
+                $entityManager->remove($contacto);
+                // Hacemos flush
+                $entityManager->flush();
+                // Redirigimos a inicio para que se actualice la lista
+                return $this->redirectToRoute('inicio');
+            } catch (\Exception $e) {
+                // En una aplicación real, deberíamos mostrar una página de error y hacer el log del error.
+                error_log("Error insertando objeto " . $e->getMessage());
+                // Si hay error, mostramos un mensaje al usuario
+                return new Response("Error insertando objeto " . $e->getMessage());
+            }
+        } else {
+            // Aquí hay que crear una página de error
+            return new Response("No se ha encontrado el contacto");
         }
     }
 
