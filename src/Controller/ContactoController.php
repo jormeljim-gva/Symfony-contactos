@@ -9,11 +9,13 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use App\Form\ContactoFormType;
+use Symfony\Component\HttpFoundation\Request;
 
 final class ContactoController extends AbstractController
 {
 
-    #[Route('/contacto/{codigo}', name: 'contacto')]
+    #[Route('/contacto/{codigo}', name: 'contacto', requirements: ['codigo' => '[0-9]+'])]    
     public function ficha(ManagerRegistry $doctrine, int $codigo = 1): Response
     {
         // La primera instrucción suele ser esta, ya que cogemos el repositorio de la entidad asociada
@@ -48,36 +50,7 @@ final class ContactoController extends AbstractController
         // Redirigir a la ficha del contacto
         return $this->redirectToRoute('contacto', ["codigo" => $contacto->getId()]);
     }
- 
-    // El valor por defecto del parámetro `codigo` es 1
-    #[Route('/contacto/update/{codigo?1}', name: 'update')]
-    public function update(ManagerRegistry $doctrine, $codigo): Response
-    {
-        $entityManager = $doctrine->getManager();
-        
-        // Se coge el repositorio de la entidad Contacto o de la que se quiera
-        $repositorio = $doctrine->getRepository(Contacto::class);
-        
-        // Se busca el contacto que tenga el id = $codigo
-        // El método `find` siempre busca por la clave de la tabla, que suele ser `id`
-        $contacto = $repositorio->find($codigo);
-        
-        // Cambiamos un dato, por ejemplo el nombre
-        $contacto->setNombre("Nombre cambiado");
-        
-        // Guardamos de forma temporal
-        $entityManager->persist($contacto);
-        
-        try{
-            // y no nos olvidemos de guardar en la base de datos
-            $entityManager->flush();
-            
-            // Mostramos la plantilla pasándole el contacto como parámetro
-            return $this->render("ficha_contacto.html.twig", ["contacto" => $contacto]);
-        }catch (\Exception $e){
-            return new Response("Se ha producido un error: " . $e->getMessage());
-        }
-    }
+
     #[Route('/contacto/borrar/{codigo}', name: 'borrar')]
     public function borrar(ManagerRegistry $doctrine, int $codigo)
     {
@@ -103,6 +76,56 @@ final class ContactoController extends AbstractController
         } else {
             // Aquí hay que crear una página de error
             return new Response("No se ha encontrado el contacto");
+        }
+    }
+
+    #[Route('/contacto/nuevo', name: 'nuevo')]
+    public function nuevo(ManagerRegistry $doctrine, Request $request)
+    {
+        $contacto = new Contacto();
+        $formulario = $this->createForm(ContactoFormType::class, $contacto);
+        $formulario->handleRequest($request);
+
+        if ($formulario->isSubmitted() && $formulario->isValid()) {
+            $contacto = $formulario->getData();
+            $entityManager = $doctrine->getManager();
+            $entityManager->persist($contacto);
+            $entityManager->flush();
+            return $this->redirectToRoute('contacto', ["codigo" => $contacto->getId()]);
+        }
+        return $this->render('nuevo.html.twig', array('formulario' => $formulario->createView()));
+    }
+
+    #[Route('/contacto/editar/{codigo}', name: 'editar', requirements:["codigo"=>"\d+"])]
+    public function editar(ManagerRegistry $doctrine, Request $request, int $codigo) {
+        $repositorio = $doctrine->getRepository(Contacto::class);
+        //En este caso, los datos los obtenemos del repositorio de contactos
+        $contacto = $repositorio->find($codigo);
+
+        if ($contacto){
+            // A partir de $contacto, rellena automáticamente el formulario y el resto es igual que para nuevo
+            $formulario = $this->createForm(ContactoFormType::class, $contacto);
+
+            $formulario->handleRequest($request);
+
+            if ($formulario->isSubmitted() && $formulario->isValid()) {
+                // Guardamos y redirigimos a la ficha
+                $contacto = $formulario->getData();
+                $entityManager = $doctrine->getManager();
+                $entityManager->persist($contacto);
+                $entityManager->flush();
+                return $this->redirectToRoute('contacto', ["codigo" => $contacto->getId()]);
+            }
+
+            // Ponemos los datos del contacto
+            return $this->render('editar.html.twig', array(
+                'formulario' => $formulario->createView()
+            ));
+
+        }else{
+            return $this->render('editar.html.twig', [
+                'contacto' => NULL
+            ]);
         }
     }
 
