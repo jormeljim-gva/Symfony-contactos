@@ -27,6 +27,10 @@ class Contacto
     #[Assert\Email(message: "El email '{{ value }}' no es válido.")]
     private ?string $email = null;
 
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?Provincia $provincia = null;
+
 
     public function getId(): ?int
     {
@@ -65,6 +69,18 @@ class Contacto
     public function setEmail(?string $email): static
     {
         $this->email = $email;
+
+        return $this;
+    }
+
+    public function getProvincia(): ?Provincia
+    {
+        return $this->provincia;
+    }
+
+    public function setProvincia(?Provincia $provincia): static
+    {
+        $this->provincia = $provincia;
 
         return $this;
     }
